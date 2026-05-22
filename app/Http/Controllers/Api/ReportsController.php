@@ -91,15 +91,17 @@ class ReportsController extends Controller
             ->join('etudiants', 'etudiants.id', '=', 'presences.etudiant_id')
             ->join('utilisateurs', 'utilisateurs.id', '=', 'etudiants.utilisateur_id')
             ->leftJoin('filieres', 'filieres.id', '=', 'etudiants.filiere_id')
-            ->selectRaw('
+            ->selectRaw("
+                etudiants.id AS etudiant_id,
                 etudiants.numero_matricule AS matricule,
-                CONCAT(utilisateurs.prenom, \' \', utilisateurs.nom) AS nom,
-                COALESCE(filieres.nom, \'—\') AS filiere,
+                utilisateurs.prenom AS prenom,
+                utilisateurs.nom AS nom_famille,
+                COALESCE(filieres.nom, '—') AS filiere,
                 COUNT(*) AS total,
-                SUM(presences.statut = \'present\') AS present,
-                SUM(presences.statut = \'late\') AS retard,
-                SUM(presences.statut = \'absent\') AS absent
-            ')
+                SUM(CASE WHEN presences.statut = 'present' THEN 1 ELSE 0 END) AS present,
+                SUM(CASE WHEN presences.statut = 'late'    THEN 1 ELSE 0 END) AS retard,
+                SUM(CASE WHEN presences.statut = 'absent'  THEN 1 ELSE 0 END) AS absent
+            ")
             ->groupBy('etudiants.id', 'etudiants.numero_matricule', 'utilisateurs.prenom', 'utilisateurs.nom', 'filieres.nom')
             ->orderByRaw('present DESC')
             ->limit(20)
@@ -108,7 +110,7 @@ class ReportsController extends Controller
                 $s = $r->present + $r->retard;
                 return [
                     'matricule' => $r->matricule,
-                    'nom'       => $r->nom,
+                    'nom'       => $r->prenom . ' ' . $r->nom_famille,
                     'filiere'   => $r->filiere,
                     'present'   => (int) $r->present,
                     'retard'    => (int) $r->retard,
